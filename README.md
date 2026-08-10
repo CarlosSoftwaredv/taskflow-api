@@ -120,5 +120,3 @@ curl -X POST http://localhost:8000/tasks/ \
 Estudante de Engenharia de Software | Suporte de TI na UniEVANGÉLICA
 
 Buscando minha primeira oportunidade como Desenvolvedor de Software.
-
-[LinkedIn](#) · [GitHub](#)
