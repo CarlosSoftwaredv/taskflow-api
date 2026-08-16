@@ -68,7 +68,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Acesse a documentação interativa em: **http://localhost:8000/docs**
+Acesse a documentação interativa em: ** https://lnkd.in/dSbjXT36**
 
 ## 🐳 Como rodar com Docker (API + MySQL)
 
