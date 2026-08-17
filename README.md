@@ -68,7 +68,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Acesse a documentação interativa em: ** https://lnkd.in/dSbjXT36**
+Acesse a documentação interativa em: **https://taskflow-api-51ia.onrender.com/docs**
 
 ## 🐳 Como rodar com Docker (API + MySQL)
 
