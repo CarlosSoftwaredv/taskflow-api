@@ -54,7 +54,7 @@ taskflow-api/
 
 ```bash
 # 1. Clone o repositório
-git clone https://github.com/SEU_USUARIO/taskflow-api.git
+git clone https://github.com/CarlosSoftwaredv/taskflow-api.git
 cd taskflow-api
 
 # 2. Crie e ative um ambiente virtual
