@@ -1,16 +1,14 @@
-version: "3.9"
-
 services:
   db:
     image: mysql:8.0
-    restart: always
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: taskflow
-      MYSQL_USER: taskflow_user
-      MYSQL_PASSWORD: taskflow_pass
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-taskflow}
+      MYSQL_USER: ${MYSQL_USER:-taskflow_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-taskflow_pass}
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -21,15 +19,21 @@ services:
 
   api:
     build: .
-    restart: always
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
     environment:
-      DATABASE_URL: mysql+pymysql://taskflow_user:taskflow_pass@db:3306/taskflow
-      SECRET_KEY: troque-esta-chave-em-producao
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-taskflow_user}:${MYSQL_PASSWORD:-taskflow_pass}@db:3306/${MYSQL_DATABASE:-taskflow}
+      SECRET_KEY: ${SECRET_KEY:-local-development-only-change-before-deploy}
+      APP_ENV: ${APP_ENV:-development}
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mysql_data:

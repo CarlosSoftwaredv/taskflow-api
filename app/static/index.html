@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7fb">
+  <meta name="description" content="Organize suas tarefas com o TaskFlow.">
+  <title>TaskFlow — organize seu dia</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172033;
+      --muted: #68738a;
+      --line: #e5e9f1;
+      --paper: #fff;
+      --canvas: #f6f7fb;
+      --brand: #5b55e7;
+      --brand-dark: #4741c7;
+      --brand-soft: #eeedff;
+      --green: #18835c;
+      --green-soft: #e7f7ef;
+      --amber: #a86211;
+      --amber-soft: #fff3df;
+      --red: #bf4052;
+      --red-soft: #fff0f1;
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; color: var(--ink); background: var(--canvas); }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+    .shell { width: min(1040px, calc(100% - 40px)); margin: 0 auto; padding: 28px 0 64px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 52px; }
+    .brand { display: inline-flex; align-items: center; gap: 11px; color: var(--ink); text-decoration: none; font-size: 19px; font-weight: 760; letter-spacing: -.04em; }
+    .brand-mark { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 12px; color: #fff; background: var(--brand); box-shadow: 0 6px 16px #5b55e733; }
+    .brand-mark svg { width: 20px; height: 20px; }
+    .top-links { display: flex; align-items: center; gap: 18px; color: var(--muted); font-size: 13px; }
+    .top-links a { text-decoration: none; }
+    .top-links a:hover { color: var(--brand); }
+    .auth-wrap { display: grid; min-height: 62vh; place-items: center; }
+    .auth-card { width: min(440px, 100%); padding: 34px; border: 1px solid var(--line); border-radius: 22px; background: var(--paper); box-shadow: 0 18px 54px #1e2a4410; }
+    .eyebrow { margin: 0 0 9px; color: var(--brand); font-size: 12px; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 9px; font-size: clamp(28px, 4vw, 38px); line-height: 1.1; letter-spacing: -.055em; }
+    .auth-card h1 { font-size: 29px; }
+    .subhead { margin: 0 0 25px; color: var(--muted); line-height: 1.6; }
+    .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-bottom: 22px; border-radius: 12px; background: #f1f2f7; }
+    .auth-tab { padding: 10px; border: 0; border-radius: 9px; color: var(--muted); background: transparent; font-size: 14px; font-weight: 650; }
+    .auth-tab[aria-selected="true"] { color: var(--ink); background: #fff; box-shadow: 0 1px 5px #18213a15; }
+    .field { display: grid; gap: 7px; margin-bottom: 15px; }
+    .field[hidden] { display: none; }
+    .field label { color: #354058; font-size: 13px; font-weight: 650; }
+    .field input, .field textarea, .field select { width: 100%; padding: 12px 13px; border: 1px solid #dce1eb; border-radius: 10px; outline: none; color: var(--ink); background: #fff; transition: border-color .15s, box-shadow .15s; }
+    .field textarea { min-height: 96px; resize: vertical; }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: #8b86f2; box-shadow: 0 0 0 3px #5b55e71a; }
+    .hint { color: var(--muted); font-size: 12px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 10px 15px; border: 1px solid transparent; border-radius: 10px; color: #fff; background: var(--brand); font-size: 14px; font-weight: 680; text-decoration: none; transition: transform .15s, background .15s, box-shadow .15s; }
+    .button:hover { background: var(--brand-dark); box-shadow: 0 7px 18px #5b55e72b; transform: translateY(-1px); }
+    .button:focus-visible, .icon-button:focus-visible, .filter-button:focus-visible, .auth-tab:focus-visible { outline: 3px solid #9f9af8; outline-offset: 2px; }
+    .button.full { width: 100%; margin-top: 3px; }
+    .button.secondary { border-color: var(--line); color: var(--ink); background: #fff; }
+    .button.secondary:hover { border-color: #c9c5fa; color: var(--brand-dark); background: #fafaff; box-shadow: none; }
+    .button svg, .icon-button svg { width: 17px; height: 17px; }
+    .dashboard { display: none; }
+    .dashboard.active { display: block; }
+    .auth-wrap.hidden { display: none; }
+    .welcome { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+    .welcome h1 { margin-bottom: 8px; }
+    .welcome .subhead { margin-bottom: 0; }
+    .welcome-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 27px; }
+    .stat { min-height: 112px; padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--paper); }
+    .stat-label { margin-bottom: 14px; color: var(--muted); font-size: 13px; }
+    .stat-value { font-size: 29px; font-weight: 760; letter-spacing: -.05em; }
+    .stat-progress { display: flex; align-items: center; gap: 11px; }
+    .progress-track { width: 100%; height: 7px; overflow: hidden; border-radius: 999px; background: #eceef5; }
+    .progress-fill { width: 0; height: 100%; border-radius: inherit; background: var(--brand); transition: width .25s; }
+    .progress-label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .tasks-panel { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--paper); }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 20px 22px; border-bottom: 1px solid var(--line); }
+    .panel-head h2 { margin: 0; font-size: 17px; letter-spacing: -.025em; }
+    .filters { display: flex; gap: 4px; padding: 4px; border-radius: 10px; background: #f3f4f8; }
+    .filter-button { padding: 8px 11px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; font-size: 12px; font-weight: 650; }
+    .filter-button[aria-pressed="true"] { color: var(--ink); background: #fff; box-shadow: 0 1px 5px #18213a15; }
+    .task-list { display: grid; }
+    .task { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 18px 22px; border-bottom: 1px solid #edf0f5; }
+    .task:last-child { border-bottom: 0; }
+    .task-main { min-width: 0; }
+    .task-title { margin: 0 0 5px; overflow-wrap: anywhere; font-size: 15px; font-weight: 680; letter-spacing: -.018em; }
+    .task-description { margin: 0 0 9px; color: var(--muted); font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .task-meta { display: flex; align-items: center; gap: 9px; color: #8790a3; font-size: 11px; }
+    .badge { padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 680; }
+    .badge.pending { color: var(--amber); background: var(--amber-soft); }
+    .badge.in_progress { color: var(--brand-dark); background: var(--brand-soft); }
+    .badge.done { color: var(--green); background: var(--green-soft); }
+    .task-actions { display: flex; align-items: center; gap: 8px; }
+    .task-status { max-width: 145px; padding: 8px 27px 8px 10px; border: 1px solid var(--line); border-radius: 9px; color: #45516a; background-color: #fff; font-size: 12px; }
+    .icon-button { display: inline-grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--line); border-radius: 9px; color: #67728a; background: #fff; }
+    .icon-button:hover { border-color: #c9c5fa; color: var(--brand); background: #fafaff; }
+    .icon-button.danger:hover { border-color: #ffd2d8; color: var(--red); background: var(--red-soft); }
+    .empty { padding: 54px 20px; text-align: center; }
+    .empty-icon { display: grid; width: 52px; height: 52px; place-items: center; margin: 0 auto 15px; border-radius: 16px; color: var(--brand); background: var(--brand-soft); }
+    .empty-icon svg { width: 25px; height: 25px; }
+    .empty h3 { margin: 0 0 7px; font-size: 16px; }
+    .empty p { margin: 0 0 17px; color: var(--muted); font-size: 13px; }
+    .footer { display: flex; justify-content: space-between; gap: 12px; padding: 18px 2px 0; color: #8790a3; font-size: 12px; }
+    .footer a { text-decoration: none; }
+    .footer a:hover { color: var(--brand); }
+    dialog { width: min(480px, calc(100% - 28px)); padding: 0; border: 1px solid var(--line); border-radius: 18px; color: var(--ink); box-shadow: 0 24px 90px #10162942; }
+    dialog::backdrop { background: #18203375; backdrop-filter: blur(3px); }
+    .dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 21px 23px 16px; border-bottom: 1px solid var(--line); }
+    .dialog-head h2 { margin: 0; font-size: 19px; letter-spacing: -.035em; }
+    .dialog-body { padding: 20px 23px 23px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+    .toast { position: fixed; right: 22px; bottom: 22px; z-index: 5; max-width: min(420px, calc(100% - 44px)); padding: 13px 16px; border: 1px solid #d9deea; border-radius: 12px; color: var(--ink); background: #fff; box-shadow: 0 10px 34px #17203320; font-size: 13px; line-height: 1.45; opacity: 0; pointer-events: none; transform: translateY(8px); transition: opacity .18s, transform .18s; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { border-color: #ffd2d8; color: #902b3b; background: #fff8f8; }
+    .loading { padding: 38px; color: var(--muted); text-align: center; font-size: 13px; }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 28px, 520px); padding-top: 17px; }
+      .topbar { margin-bottom: 35px; }
+      .welcome { align-items: start; flex-direction: column; }
+      .welcome-actions { width: 100%; }
+      .welcome-actions .button { flex: 1; }
+      .stats { gap: 8px; }
+      .stat { min-height: 92px; padding: 14px; }
+      .stat-label { min-height: 30px; margin-bottom: 7px; font-size: 11px; }
+      .stat-value { font-size: 24px; }
+      .stat-progress { align-items: start; flex-direction: column; gap: 8px; }
+      .panel-head { align-items: start; flex-direction: column; padding: 17px; }
+      .filters { width: 100%; justify-content: space-between; }
+      .filter-button { padding: 8px 7px; }
+      .task { grid-template-columns: 1fr; padding: 16px 17px; }
+      .task-actions { justify-content: flex-end; }
+      .task-status { flex: 1; max-width: none; }
+      .auth-card { padding: 26px 22px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="TaskFlow início">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5h12M8 12h12M8 19h12"/><path d="m2.5 5 1.5 1.5L6.5 4M2.5 12l1.5 1.5L6.5 11M2.5 19l1.5 1.5L6.5 18"/></svg></span>
+        TaskFlow
+      </a>
+      <nav class="top-links" aria-label="Links úteis"><a href="/docs">Documentação da API</a></nav>
+    </header>
+
+    <main>
+      <section id="authView" class="auth-wrap" aria-labelledby="authTitle">
+        <div class="auth-card">
+          <p class="eyebrow">Seu espaço de foco</p>
+          <h1 id="authTitle">Organize o que importa.</h1>
+          <p class="subhead">Entre na sua conta ou crie uma para começar a cuidar das tarefas do seu dia.</p>
+          <div class="auth-tabs" role="tablist" aria-label="Acesso à conta">
+            <button class="auth-tab" id="loginTab" type="button" role="tab" aria-selected="true">Entrar</button>
+            <button class="auth-tab" id="registerTab" type="button" role="tab" aria-selected="false">Criar conta</button>
+          </div>
+          <form id="authForm">
+            <div class="field" id="nameField" hidden>
+              <label for="name">Como podemos chamar você?</label>
+              <input id="name" name="name" autocomplete="name" minlength="2" maxlength="120" placeholder="Seu nome">
+            </div>
+            <div class="field">
+              <label for="email">E-mail</label>
+              <input id="email" name="email" type="email" autocomplete="email" required placeholder="voce@exemplo.com">
+            </div>
+            <div class="field">
+              <label for="password">Senha</label>
+              <input id="password" name="password" type="password" autocomplete="current-password" minlength="6" maxlength="100" required placeholder="Pelo menos 6 caracteres">
+              <span class="hint" id="passwordHint" hidden>Use pelo menos 6 caracteres.</span>
+            </div>
+            <button class="button full" id="authSubmit" type="submit">Entrar</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="dashboard" class="dashboard" aria-labelledby="pageTitle">
+        <div class="welcome">
+          <div><p class="eyebrow">Seu espaço de foco</p><h1 id="pageTitle">Bom dia.</h1><p class="subhead">Um passo de cada vez. Veja o que está na sua lista.</p></div>
+          <div class="welcome-actions">
+            <button class="button" id="newTaskButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Nova tarefa</button>
+            <button class="button secondary" id="logoutButton" type="button">Sair</button>
+          </div>
+        </div>
+        <section class="stats" aria-label="Resumo das tarefas">
+          <div class="stat"><p class="stat-label">Tarefas no total</p><div class="stat-value" id="totalCount">0</div></div>
+          <div class="stat"><p class="stat-label">Em andamento</p><div class="stat-value" id="activeCount">0</div></div>
+          <div class="stat"><p class="stat-label">Seu progresso</p><div class="stat-progress"><div class="progress-track" role="progressbar" aria-label="Tarefas concluídas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="progress-fill" id="progressFill"></div></div><span class="progress-label" id="progressLabel">0%</span></div></div>
+        </section>
+        <section class="tasks-panel" aria-labelledby="tasksTitle">
+          <div class="panel-head">
+            <h2 id="tasksTitle">Minhas tarefas</h2>
+            <div class="filters" role="group" aria-label="Filtrar tarefas">
+              <button class="filter-button" type="button" data-filter="all" aria-pressed="true">Todas</button>
+              <button class="filter-button" type="button" data-filter="pending" aria-pressed="false">Pendentes</button>
+              <button class="filter-button" type="button" data-filter="in_progress" aria-pressed="false">Em andamento</button>
+              <button class="filter-button" type="button" data-filter="done" aria-pressed="false">Concluídas</button>
+            </div>
+          </div>
+          <div class="task-list" id="taskList" aria-live="polite"><div class="loading">Carregando suas tarefas…</div></div>
+        </section>
+        <footer class="footer"><span>Seus dados ficam vinculados à sua conta.</span><a href="/docs">Ver documentação da API ↗</a></footer>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="taskDialog" aria-labelledby="taskDialogTitle">
+    <div class="dialog-head"><h2 id="taskDialogTitle">Nova tarefa</h2><button class="icon-button" id="closeDialogButton" type="button" aria-label="Fechar janela">✕</button></div>
+    <form id="taskForm" class="dialog-body">
+      <div class="field"><label for="taskTitle">Título</label><input id="taskTitle" name="title" required maxlength="150" placeholder="Ex.: Preparar apresentação"></div>
+      <div class="field"><label for="taskDescription">Descrição <span class="hint">(opcional)</span></label><textarea id="taskDescription" name="description" placeholder="Adicione detalhes para não esquecer…"></textarea></div>
+      <div class="field"><label for="taskStatus">Status</label><select id="taskStatus" name="status"><option value="pending">Pendente</option><option value="in_progress">Em andamento</option><option value="done">Concluída</option></select></div>
+      <div class="dialog-actions"><button class="button secondary" id="cancelDialogButton" type="button">Cancelar</button><button class="button" id="saveTaskButton" type="submit">Salvar tarefa</button></div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      const statusLabels = { pending: "Pendente", in_progress: "Em andamento", done: "Concluída" };
+      const state = { token: sessionStorage.getItem("taskflow-token"), user: null, tasks: [], filter: "all", editingId: null, registering: false, toastTimer: null };
+      const $ = (selector) => document.querySelector(selector);
+      const authView = $("#authView");
+      const dashboard = $("#dashboard");
+      const authForm = $("#authForm");
+      const taskDialog = $("#taskDialog");
+      const taskForm = $("#taskForm");
+
+      function notify(message, isError = false) {
+        const toast = $("#toast");
+        toast.textContent = message;
+        toast.classList.toggle("error", isError);
+        toast.classList.add("show");
+        window.clearTimeout(state.toastTimer);
+        state.toastTimer = window.setTimeout(() => toast.classList.remove("show"), 3600);
+      }
+
+      function showAuth() {
+        state.token = null;
+        state.user = null;
+        sessionStorage.removeItem("taskflow-token");
+        dashboard.classList.remove("active");
+        authView.classList.remove("hidden");
+        setAuthMode(false);
+      }
+
+      function showDashboard() {
+        authView.classList.add("hidden");
+        dashboard.classList.add("active");
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+        $("#pageTitle").textContent = state.user?.name ? `${greeting}, ${state.user.name.split(" ")[0]}.` : `${greeting}.`;
+        loadTasks();
+      }
+
+      function setAuthMode(registering) {
+        state.registering = registering;
+        $("#loginTab").setAttribute("aria-selected", String(!registering));
+        $("#registerTab").setAttribute("aria-selected", String(registering));
+        $("#nameField").hidden = !registering;
+        $("#passwordHint").hidden = !registering;
+        $("#password").autocomplete = registering ? "new-password" : "current-password";
+        $("#authTitle").textContent = registering ? "Sua rotina, mais leve." : "Organize o que importa.";
+        $(".auth-card .subhead").textContent = registering ? "Crie sua conta para começar a organizar suas tarefas." : "Entre na sua conta ou crie uma para começar a cuidar das tarefas do seu dia.";
+        $("#authSubmit").textContent = registering ? "Criar conta" : "Entrar";
+      }
+
+      async function request(path, options = {}) {
+        const headers = new Headers(options.headers || {});
+        if (options.body && !(options.body instanceof URLSearchParams)) headers.set("Content-Type", "application/json");
+        if (state.token && options.auth !== false) headers.set("Authorization", `Bearer ${state.token}`);
+        const response = await fetch(path, { ...options, headers });
+        if (response.status === 401 && options.auth !== false) {
+          showAuth();
+          throw new Error("Sua sessão expirou. Entre novamente para continuar.");
+        }
+        if (response.status === 204) return null;
+        const contentType = response.headers.get("content-type") || "";
+        const data = contentType.includes("application/json") ? await response.json() : null;
+        if (!response.ok) {
+          const detail = data?.detail;
+          throw new Error(Array.isArray(detail) ? detail.map((item) => item.msg).join(" · ") : detail || "Não foi possível concluir a ação.");
+        }
+        return data;
+      }
+
+      async function authenticate(email, password) {
+        const form = new URLSearchParams({ username: email, password });
+        const data = await request("/auth/login", { method: "POST", body: form, auth: false });
+        state.token = data.access_token;
+        sessionStorage.setItem("taskflow-token", state.token);
+        state.user = { name: $("#name").value.trim() || email.split("@")[0] };
+        showDashboard();
+      }
+
+      authForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = $("#authSubmit");
+        button.disabled = true;
+        button.textContent = state.registering ? "Criando sua conta…" : "Entrando…";
+        try {
+          const email = $("#email").value.trim().toLowerCase();
+          const password = $("#password").value;
+          if (state.registering) {
+            const name = $("#name").value.trim();
+            await request("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }), auth: false });
+            await authenticate(email, password);
+            notify("Conta criada. Boas-vindas ao TaskFlow!");
+          } else {
+            await authenticate(email, password);
+            notify("Que bom ter você de volta!");
+          }
+        } catch (error) { notify(error.message, true); }
+        finally { button.disabled = false; button.textContent = state.registering ? "Criar conta" : "Entrar"; }
+      });
+
+      async function loadTasks() {
+        const list = $("#taskList");
+        list.replaceChildren(Object.assign(document.createElement("div"), { className: "loading", textContent: "Carregando suas tarefas…" }));
+        try {
+          state.tasks = await request("/tasks/");
+          updateStats();
+          renderTasks();
+        } catch (error) {
+          if (state.token) notify(error.message, true);
+          if (state.token) list.replaceChildren(Object.assign(document.createElement("div"), { className: "empty", textContent: "Não foi possível carregar as tarefas." }));
+        }
+      }
+
+      function updateStats() {
+        const total = state.tasks.length;
+        const active = state.tasks.filter((task) => task.status === "in_progress").length;
+        const done = state.tasks.filter((task) => task.status === "done").length;
+        const percent = total ? Math.round((done / total) * 100) : 0;
+        $("#totalCount").textContent = total;
+        $("#activeCount").textContent = active;
+        $("#progressFill").style.width = `${percent}%`;
+        $(".progress-track").setAttribute("aria-valuenow", percent);
+        $("#progressLabel").textContent = `${percent}% concluídas`;
+      }
+
+      function makeIconButton(label, icon, action, danger = false) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `icon-button${danger ? " danger" : ""}`;
+        button.setAttribute("aria-label", label);
+        button.title = label;
+        button.innerHTML = icon;
+        button.addEventListener("click", action);
+        return button;
+      }
+
+      function renderTasks() {
+        const list = $("#taskList");
+        const filtered = state.filter === "all" ? state.tasks : state.tasks.filter((task) => task.status === state.filter);
+        list.replaceChildren();
+        if (!filtered.length) {
+          const empty = document.createElement("div");
+          empty.className = "empty";
+          const icon = document.createElement("span");
+          icon.className = "empty-icon";
+          icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>';
+          const title = document.createElement("h3");
+          const body = document.createElement("p");
+          if (!state.tasks.length) {
+            title.textContent = "Sua lista começa aqui";
+            body.textContent = "Adicione uma tarefa e organize o que precisa fazer.";
+            const add = document.createElement("button");
+            add.type = "button";
+            add.className = "button";
+            add.textContent = "Criar primeira tarefa";
+            add.addEventListener("click", () => openTaskDialog());
+            empty.append(icon, title, body, add);
+          } else {
+            title.textContent = "Nenhuma tarefa neste filtro";
+            body.textContent = "Escolha outro status para ver suas tarefas.";
+            empty.append(icon, title, body);
+          }
+          list.append(empty);
+          return;
+        }
+        for (const task of filtered) list.append(makeTaskCard(task));
+      }
+
+      function makeTaskCard(task) {
+        const article = document.createElement("article");
+        article.className = "task";
+        const content = document.createElement("div");
+        content.className = "task-main";
+        const title = document.createElement("h3");
+        title.className = "task-title";
+        title.textContent = task.title;
+        content.append(title);
+        if (task.description) {
+          const description = document.createElement("p");
+          description.className = "task-description";
+          description.textContent = task.description;
+          content.append(description);
+        }
+        const meta = document.createElement("div");
+        meta.className = "task-meta";
+        const badge = document.createElement("span");
+        badge.className = `badge ${task.status}`;
+        badge.textContent = statusLabels[task.status] || task.status;
+        const created = document.createElement("time");
+        created.dateTime = task.created_at;
+        created.textContent = new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(new Date(task.created_at));
+        meta.append(badge, created);
+        content.append(meta);
+
+        const actions = document.createElement("div");
+        actions.className = "task-actions";
+        const status = document.createElement("select");
+        status.className = "task-status";
+        status.setAttribute("aria-label", `Status de ${task.title}`);
+        for (const [value, label] of Object.entries(statusLabels)) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          option.selected = value === task.status;
+          status.append(option);
+        }
+        status.addEventListener("change", () => saveTask({ ...task, status: status.value }, true));
+        actions.append(status);
+        const editIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg>';
+        const deleteIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m4 4v6m6-6v6"/></svg>';
+        actions.append(makeIconButton(`Editar ${task.title}`, editIcon, () => openTaskDialog(task)));
+        actions.append(makeIconButton(`Excluir ${task.title}`, deleteIcon, () => removeTask(task), true));
+        article.append(content, actions);
+        return article;
+      }
+
+      function openTaskDialog(task = null) {
+        state.editingId = task?.id ?? null;
+        $("#taskDialogTitle").textContent = task ? "Editar tarefa" : "Nova tarefa";
+        $("#saveTaskButton").textContent = task ? "Salvar alterações" : "Salvar tarefa";
+        $("#taskTitle").value = task?.title ?? "";
+        $("#taskDescription").value = task?.description ?? "";
+        $("#taskStatus").value = task?.status ?? "pending";
+        taskDialog.showModal();
+        $("#taskTitle").focus();
+      }
+
+      taskForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = $("#saveTaskButton");
+        button.disabled = true;
+        const current = state.tasks.find((task) => task.id === state.editingId);
+        const data = { title: $("#taskTitle").value.trim(), description: $("#taskDescription").value.trim() || null, status: $("#taskStatus").value };
+        try {
+          const path = state.editingId ? `/tasks/${state.editingId}` : "/tasks/";
+          const method = state.editingId ? "PUT" : "POST";
+          await request(path, { method, body: JSON.stringify(data) });
+          taskDialog.close();
+          await loadTasks();
+          notify(current ? "Tarefa atualizada." : "Tarefa criada.");
+        } catch (error) { notify(error.message, true); }
+        finally { button.disabled = false; }
+      });
+
+      async function saveTask(task, quiet = false) {
+        try {
+          await request(`/tasks/${task.id}`, { method: "PUT", body: JSON.stringify({ title: task.title, description: task.description, status: task.status }) });
+          await loadTasks();
+          if (!quiet) notify("Tarefa atualizada.");
+        } catch (error) { notify(error.message, true); loadTasks(); }
+      }
+
+      async function removeTask(task) {
+        if (!window.confirm(`Excluir “${task.title}”? Esta ação não pode ser desfeita.`)) return;
+        try {
+          await request(`/tasks/${task.id}`, { method: "DELETE" });
+          await loadTasks();
+          notify("Tarefa excluída.");
+        } catch (error) { notify(error.message, true); }
+      }
+
+      $("#loginTab").addEventListener("click", () => setAuthMode(false));
+      $("#registerTab").addEventListener("click", () => setAuthMode(true));
+      $("#logoutButton").addEventListener("click", showAuth);
+      $("#newTaskButton").addEventListener("click", () => openTaskDialog());
+      $("#closeDialogButton").addEventListener("click", () => taskDialog.close());
+      $("#cancelDialogButton").addEventListener("click", () => taskDialog.close());
+      document.querySelectorAll("[data-filter]").forEach((button) => button.addEventListener("click", () => {
+        state.filter = button.dataset.filter;
+        document.querySelectorAll("[data-filter]").forEach((item) => item.setAttribute("aria-pressed", String(item === button)));
+        renderTasks();
+      }));
+
+      if (state.token) showDashboard();
+    })();
+  </script>
+</body>
+</html>

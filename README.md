@@ -1,122 +1,102 @@
-# TaskFlow API 📝
+# TaskFlow
 
-API REST para gerenciamento de tarefas (to-do list) com autenticação de usuários via JWT, construída em **Python** com **FastAPI**, **SQLAlchemy** e **MySQL**.
+O TaskFlow ajuda você a organizar tarefas por status. Ele combina uma interface web simples com uma API REST em FastAPI e autenticação por conta. A interface e a API são servidas pela mesma aplicação.
 
-Projeto criado para consolidar conhecimentos práticos de back-end: modelagem de dados, autenticação, versionamento com Git e containerização com Docker.
+## Comece pelo Docker
 
-## ✨ Funcionalidades
-
-- Cadastro e login de usuários com senha criptografada (bcrypt)
-- Autenticação via **JWT** (JSON Web Token)
-- CRUD completo de tarefas (criar, listar, atualizar, remover)
-- Cada usuário só acessa suas próprias tarefas
-- Filtro de tarefas por status (`pending`, `in_progress`, `done`)
-- Documentação automática interativa (Swagger/OpenAPI)
-- Suporte a **MySQL** (produção) e **SQLite** (desenvolvimento local, sem configuração)
-- Containerizado com **Docker** e **Docker Compose**
-- Testes automatizados com **pytest**
-
-## 🛠️ Tecnologias
-
-| Categoria       | Tecnologia            |
-|-----------------|------------------------|
-| Linguagem       | Python 3.12            |
-| Framework       | FastAPI                |
-| ORM             | SQLAlchemy             |
-| Banco de dados  | MySQL / SQLite         |
-| Autenticação    | JWT (python-jose) + bcrypt |
-| Containerização | Docker / Docker Compose|
-| Testes          | Pytest                 |
-
-## 📁 Estrutura do projeto
-
-```
-taskflow-api/
-├── app/
-│   ├── routers/
-│   │   ├── auth.py       # Endpoints de registro/login
-│   │   └── tasks.py      # Endpoints de CRUD de tarefas
-│   ├── database.py       # Configuração da conexão com o banco
-│   ├── models.py         # Modelos SQLAlchemy (User, Task)
-│   ├── schemas.py        # Schemas Pydantic (validação)
-│   ├── auth.py           # Hash de senha e geração/validação de JWT
-│   ├── crud.py           # Funções de acesso ao banco
-│   └── main.py           # Ponto de entrada da aplicação
-├── tests/
-│   └── test_main.py      # Testes automatizados
-├── Dockerfile
-├── docker-compose.yml
-├── requirements.txt
-└── .env.example
-```
-
-## 🚀 Como rodar localmente (sem Docker)
+Com o Docker Desktop aberto, no diretório do projeto, execute:
 
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/CarlosSoftwaredv/taskflow-api.git
-cd taskflow-api
+docker compose up --build -d
+```
 
-# 2. Crie e ative um ambiente virtual
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+Abra **http://localhost:8000** no navegador e crie uma conta. A API fica disponível em **http://localhost:8000/docs** e o estado dos serviços em **http://localhost:8000/health**. O MySQL roda em outro container e os dados são guardados no volume `mysql_data`.
 
-# 3. Instale as dependências
+Para acompanhar a inicialização:
+
+```bash
+docker compose logs -f api db
+```
+
+Para parar os containers sem apagar os dados:
+
+```bash
+docker compose down
+```
+
+## Usar sem Docker
+
+O modo local usa SQLite por padrão:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# 4. Rode a aplicação (usa SQLite por padrão, zero configuração)
 uvicorn app.main:app --reload
 ```
 
-Acesse a documentação interativa em: **https://taskflow-api-51ia.onrender.com/docs**
+Em seguida, abra **http://localhost:8000**. O arquivo `taskflow.db` é criado no diretório do projeto.
 
-## 🐳 Como rodar com Docker (API + MySQL)
+## O que você pode fazer
 
-```bash
-docker-compose up --build
+- Criar uma conta e entrar com e-mail e senha
+- Criar tarefas com título, descrição e status
+- Editar e excluir tarefas
+- Filtrar tarefas pendentes, em andamento ou concluídas
+- Acompanhar o total de tarefas, as que estão em andamento e o progresso concluído
+- Usar a API autenticada diretamente pela documentação interativa em `/docs`
+
+## Publicar no Render
+
+O serviço existente pode continuar usando o mesmo repositório conectado e o `Dockerfile` deste projeto. A interface abre na raiz `/`; a documentação continua em `/docs` e a verificação de disponibilidade em `/health`.
+
+No painel do serviço, configure as variáveis de ambiente:
+
+| Variável | Valor |
+| --- | --- |
+| `APP_ENV` | `production` |
+| `SECRET_KEY` | Uma chave aleatória longa e privada |
+| `DATABASE_URL` | URL do banco de dados persistente do serviço |
+
+Não reutilize a senha local do Compose como chave de produção. O Render precisa de um banco acessível pelo serviço; o MySQL declarado no `docker-compose.yml` existe apenas no ambiente Docker local.
+
+Depois de enviar as alterações ao repositório ligado ao Render, faça o deploy e verifique `/health`. O Render já publicado em **https://taskflow-api-51ia.onrender.com/docs** é independente do Docker no seu Mac.
+
+## Configuração local
+
+Os valores padrão do Compose são destinados somente ao computador local. Para personalizá-los, copie `.env.example` para `.env` e edite as variáveis. O arquivo `.env` é ignorado pelo Git. Se a porta `3306` ou `8000` já estiver ocupada, altere `MYSQL_PORT` ou `API_PORT`.
+
+## Estrutura
+
+```text
+app/
+├── routers/       # Rotas de autenticação e tarefas
+├── static/        # Interface web do TaskFlow
+├── auth.py        # Senhas e tokens JWT
+├── crud.py        # Acesso e operações no banco
+├── database.py    # Conexão e sessões SQLAlchemy
+├── models.py      # Usuários e tarefas
+├── schemas.py     # Validação e respostas da API
+└── main.py        # Aplicação FastAPI e páginas de estado
 ```
 
-A API sobe em `http://localhost:8000` já conectada ao MySQL.
+## API
 
-## 🧪 Rodando os testes
+| Método | Rota | Uso |
+| --- | --- | --- |
+| `POST` | `/auth/register` | Criar conta |
+| `POST` | `/auth/login` | Entrar e receber token |
+| `GET` | `/tasks/` | Listar tarefas do usuário |
+| `POST` | `/tasks/` | Criar tarefa |
+| `GET` | `/tasks/{task_id}` | Consultar tarefa |
+| `PUT` | `/tasks/{task_id}` | Atualizar tarefa |
+| `DELETE` | `/tasks/{task_id}` | Excluir tarefa |
+| `GET` | `/health` | Verificar aplicação e conexão com banco |
 
-```bash
-pytest tests/ -v
-```
+As rotas de tarefa exigem um token Bearer. Consulte `/docs` para os formatos de cada requisição.
 
-## 📌 Exemplos de uso
+## Sobre o projeto
 
-**Registrar usuário**
-```bash
-curl -X POST http://localhost:8000/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Vitor", "email": "vitor@example.com", "password": "senha123"}'
-```
+Projeto de estudo de desenvolvimento back-end, construído com Python, FastAPI, SQLAlchemy, MySQL/SQLite e Docker.
 
-**Login**
-```bash
-curl -X POST http://localhost:8000/auth/login \
-  -d "username=vitor@example.com&password=senha123"
-```
-
-**Criar tarefa** (use o token retornado no login)
-```bash
-curl -X POST http://localhost:8000/tasks/ \
-  -H "Authorization: Bearer SEU_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Estudar Docker", "status": "pending"}'
-```
-
-## 🗺️ Próximos passos (roadmap)
-
-- [ ] Migrations com Alembic
-- [ ] Paginação na listagem de tarefas
-- [ ] Deploy em nuvem (Render/Railway)
-- [ ] Reescrever a versão em Java + Spring Boot para comparar as duas abordagens
-
-## 👤 Autor
-
-**Carlos Vitor de Moura Borges**
-Estudante de Engenharia de Software | Suporte de TI na Uniego
-
-Buscando minha primeira oportunidade como Desenvolvedor de Software.
+**Autor:** Carlos Vitor de Moura Borges — estudante de Engenharia de Software e profissional de suporte de TI.

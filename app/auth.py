@@ -14,7 +14,12 @@ from app import models
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret-in-production")
+APP_ENV = os.getenv("APP_ENV", "development").lower()
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if APP_ENV == "production":
+        raise RuntimeError("Configure SECRET_KEY before starting TaskFlow in production.")
+    SECRET_KEY = "local-development-only-change-before-deploy"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24h
 
@@ -45,13 +50,17 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        raw_user_id = payload.get("sub")
+        if raw_user_id is None:
+            raise credentials_exception
+        try:
+            user_id = int(raw_user_id)
+        except (TypeError, ValueError):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+    user = db.query(models.User).filter(models.User.id == user_id).first()
     if user is None:
         raise credentials_exception
     return user
