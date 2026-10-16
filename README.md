@@ -60,7 +60,7 @@ No painel do serviço, configure as variáveis de ambiente:
 
 Não reutilize a senha local do Compose como chave de produção. O Render precisa de um banco acessível pelo serviço; o MySQL declarado no `docker-compose.yml` existe apenas no ambiente Docker local.
 
-Depois de enviar as alterações ao repositório ligado ao Render, faça o deploy e verifique `/health`. O Render já publicado em **https://taskflow-api-51ia.onrender.com/docs** é independente do Docker no seu Mac.
+Depois de enviar as alterações ao repositório ligado ao Render, faça o deploy e verifique `/health`. A versão publicada está em [https://task-k4tz.onrender.com](https://task-k4tz.onrender.com), com a documentação da API em [https://task-k4tz.onrender.com/docs](https://task-k4tz.onrender.com/docs). Ela é independente do Docker no seu Mac.
 
 ## Configuração local
 
