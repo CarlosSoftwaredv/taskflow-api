@@ -117,6 +117,6 @@ curl -X POST http://localhost:8000/tasks/ \
 ## 👤 Autor
 
 **Carlos Vitor de Moura Borges**
-Estudante de Engenharia de Software | Suporte de TI na UniEVANGÉLICA
+Estudante de Engenharia de Software | Suporte de TI na Uniego
 
 Buscando minha primeira oportunidade como Desenvolvedor de Software.
