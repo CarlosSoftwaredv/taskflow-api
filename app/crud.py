@@ -1,4 +1,5 @@
 from typing import Optional
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import models, schemas
@@ -7,7 +8,7 @@ from app.auth import hash_password
 
 # ---------- User ----------
 def get_user_by_email(db: Session, email: str) -> Optional[models.User]:
-    return db.query(models.User).filter(models.User.email == email).first()
+    return db.query(models.User).filter(func.lower(models.User.email) == email.strip().lower()).first()
 
 
 def create_user(db: Session, user: schemas.UserCreate) -> models.User:

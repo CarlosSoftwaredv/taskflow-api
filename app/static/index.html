@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
   <meta name="theme-color" content="#f6f7fb">
   <meta name="description" content="Organize suas tarefas com o TaskFlow.">
   <title>TaskFlow — organize seu dia</title>
@@ -147,7 +148,7 @@
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5h12M8 12h12M8 19h12"/><path d="m2.5 5 1.5 1.5L6.5 4M2.5 12l1.5 1.5L6.5 11M2.5 19l1.5 1.5L6.5 18"/></svg></span>
         TaskFlow
       </a>
-      <nav class="top-links" aria-label="Links úteis"><a href="/docs">Documentação da API</a></nav>
+      <nav class="top-links" aria-label="Links úteis"><a href="/docs">Documentação da API</a> · <a href="/database">Banco de dados</a></nav>
     </header>
 
     <main>
@@ -171,11 +172,37 @@
             </div>
             <div class="field">
               <label for="password">Senha</label>
-              <input id="password" name="password" type="password" autocomplete="current-password" minlength="6" maxlength="100" required placeholder="Pelo menos 6 caracteres">
-              <span class="hint" id="passwordHint" hidden>Use pelo menos 6 caracteres.</span>
+              <input id="password" name="password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required placeholder="Pelo menos 12 caracteres">
+              <span class="hint" id="passwordHint" hidden>Use pelo menos 12 caracteres, com letras e números.</span>
             </div>
             <button class="button full" id="authSubmit" type="submit">Entrar</button>
           </form>
+          <button class="button secondary full" id="forgotPasswordButton" type="button" style="margin-top:12px">Esqueci minha senha</button>
+          <section id="recoveryStep" hidden aria-live="polite">
+            <h2 id="recoveryTitle">Recuperar acesso</h2>
+            <p class="subhead" id="recoveryInstructions">Informe o e-mail da conta. Se ele estiver cadastrado, enviaremos um link seguro.</p>
+            <form id="forgotForm">
+              <div class="field"><label for="recoveryEmail">E-mail</label><input id="recoveryEmail" type="email" autocomplete="email" required placeholder="voce@exemplo.com"></div>
+              <button class="button full" type="submit">Enviar link de recuperação</button>
+            </form>
+            <form id="resetForm" hidden>
+              <div class="field"><label for="newPassword">Nova senha</label><input id="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required placeholder="Pelo menos 12 caracteres"></div>
+              <div class="field"><label for="confirmPassword">Confirme a nova senha</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></div>
+              <button class="button full" type="submit">Salvar nova senha</button>
+            </form>
+            <button class="button secondary full" id="cancelRecoveryButton" type="button">Voltar para entrar</button>
+          </section>
+          <section id="securityStep" hidden aria-live="polite">
+            <h2 id="securityTitle">Confirme sua identidade</h2>
+            <p class="subhead" id="securityInstructions"></p>
+            <p id="mfaSecret" hidden style="overflow-wrap:anywhere;font-family:monospace"></p>
+            <form id="securityForm">
+              <div class="field"><label for="securityCode">Código</label><input id="securityCode" inputmode="numeric" autocomplete="one-time-code" required placeholder="Código de 6 dígitos"></div>
+              <button class="button full" id="securitySubmit" type="submit">Continuar</button>
+            </form>
+            <button class="button secondary full" id="resendEmailButton" type="button" hidden>Reenviar confirmação por e-mail</button>
+            <button class="button secondary full" id="backToAuthButton" type="button">Voltar</button>
+          </section>
         </div>
       </section>
 
@@ -223,7 +250,7 @@
   <script>
     (() => {
       const statusLabels = { pending: "Pendente", in_progress: "Em andamento", done: "Concluída" };
-      const state = { token: sessionStorage.getItem("taskflow-token"), user: null, tasks: [], filter: "all", editingId: null, registering: false, toastTimer: null };
+      const state = { token: sessionStorage.getItem("taskflow-token"), user: null, tasks: [], filter: "all", editingId: null, registering: false, toastTimer: null, security: null, email: "", resetToken: null };
       const $ = (selector) => document.querySelector(selector);
       const authView = $("#authView");
       const dashboard = $("#dashboard");
@@ -247,6 +274,10 @@
         dashboard.classList.remove("active");
         authView.classList.remove("hidden");
         setAuthMode(false);
+        $("#recoveryStep").hidden = true;
+        $("#securityStep").hidden = true;
+        authForm.hidden = false;
+        document.querySelector(".auth-tabs").hidden = false;
       }
 
       function showDashboard() {
@@ -264,6 +295,7 @@
         $("#registerTab").setAttribute("aria-selected", String(registering));
         $("#nameField").hidden = !registering;
         $("#passwordHint").hidden = !registering;
+        $("#forgotPasswordButton").hidden = registering;
         $("#password").autocomplete = registering ? "new-password" : "current-password";
         $("#authTitle").textContent = registering ? "Sua rotina, mais leve." : "Organize o que importa.";
         $(".auth-card .subhead").textContent = registering ? "Crie sua conta para começar a organizar suas tarefas." : "Entre na sua conta ou crie uma para começar a cuidar das tarefas do seu dia.";
@@ -292,11 +324,120 @@
       async function authenticate(email, password) {
         const form = new URLSearchParams({ username: email, password });
         const data = await request("/auth/login", { method: "POST", body: form, auth: false });
-        state.token = data.access_token;
-        sessionStorage.setItem("taskflow-token", state.token);
+        state.email = email;
+        if (data.requires_mfa) {
+          state.security = { mode: "verify", challenge: data.challenge_token };
+          showSecurity("Verificação em duas etapas", "Digite o código de 6 dígitos do seu aplicativo autenticador. Você também pode usar um código de recuperação.");
+          return;
+        }
+        if (data.requires_mfa_setup) {
+          state.security = { mode: "setup", token: data.setup_token };
+          const setup = await request("/auth/mfa/setup", { method: "POST", body: JSON.stringify({ token: data.setup_token }), auth: false });
+          $("#mfaSecret").hidden = false;
+          $("#mfaSecret").textContent = `Chave para adicionar manualmente no seu aplicativo: ${setup.secret}`;
+          showSecurity("Configure seu autenticador", `${setup.instructions} Esta chave é mostrada apenas agora. Guarde-a em local privado.`);
+          return;
+        }
+        finishLogin(data.access_token, email);
+      }
+
+      function showSecurity(title, instructions) {
+        authForm.hidden = true;
+        $("#forgotPasswordButton").hidden = true;
+        $("#recoveryStep").hidden = true;
+        document.querySelector(".auth-tabs").hidden = true;
+        $("#securityStep").hidden = false;
+        $("#securityTitle").textContent = title;
+        $("#securityInstructions").textContent = instructions;
+        $("#securityCode").value = "";
+        $("#securitySubmit").textContent = state.security?.mode === "setup" ? "Ativar proteção e entrar" : "Verificar e entrar";
+      }
+
+      function finishLogin(token, email) {
+        state.token = token;
+        sessionStorage.setItem("taskflow-token", token);
         state.user = { name: $("#name").value.trim() || email.split("@")[0] };
+        state.security = null;
         showDashboard();
       }
+
+      $("#securityForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const button = $("#securitySubmit");
+        button.disabled = true;
+        try {
+          const code = $("#securityCode").value.trim();
+          if (state.security.mode === "setup") {
+            const data = await request("/auth/mfa/enable", { method: "POST", body: JSON.stringify({ token: state.security.token, code }), auth: false });
+            if (data.recovery_codes?.length) alert(`Guarde estes códigos de recuperação em local seguro. Cada código só pode ser usado uma vez:\n\n${data.recovery_codes.join("\n")}`);
+            finishLogin(data.access_token, state.email);
+            notify("Segundo fator ativado. Códigos de recuperação exibidos uma única vez.");
+          } else {
+            const data = await request("/auth/mfa/verify", { method: "POST", body: JSON.stringify({ token: state.security.challenge, code }), auth: false });
+            finishLogin(data.access_token, state.email);
+            notify("Identidade confirmada. Que bom ter você de volta!");
+          }
+        } catch (error) { notify(error.message, true); }
+        finally { button.disabled = false; }
+      });
+
+      $("#resendEmailButton").addEventListener("click", async () => {
+        try {
+          await request("/auth/email/resend", { method: "POST", body: JSON.stringify({ email: $("#email").value.trim() }), auth: false });
+          notify("Se houver um cadastro pendente, enviaremos um link de confirmação.");
+        } catch (error) { notify(error.message, true); }
+      });
+      $("#backToAuthButton").addEventListener("click", () => {
+        $("#securityStep").hidden = true;
+        $("#mfaSecret").hidden = true;
+        authForm.hidden = false;
+        $("#forgotPasswordButton").hidden = state.registering;
+        document.querySelector(".auth-tabs").hidden = false;
+      });
+
+      function showRecovery(resetMode = false) {
+        authForm.hidden = true;
+        $("#forgotPasswordButton").hidden = true;
+        $("#securityStep").hidden = true;
+        document.querySelector(".auth-tabs").hidden = true;
+        $("#recoveryStep").hidden = false;
+        $("#forgotForm").hidden = resetMode;
+        $("#resetForm").hidden = !resetMode;
+        $("#recoveryTitle").textContent = resetMode ? "Crie uma nova senha" : "Recuperar acesso";
+        $("#recoveryInstructions").textContent = resetMode ? "Escolha uma senha com pelo menos 12 caracteres, incluindo letras e números." : "Informe o e-mail da conta. Se ele estiver cadastrado, enviaremos um link seguro.";
+      }
+
+      $("#forgotPasswordButton").addEventListener("click", () => {
+        $("#recoveryEmail").value = $("#email").value.trim();
+        showRecovery(false);
+      });
+      $("#cancelRecoveryButton").addEventListener("click", () => {
+        $("#recoveryStep").hidden = true;
+        authForm.hidden = false;
+        $("#forgotPasswordButton").hidden = state.registering;
+        document.querySelector(".auth-tabs").hidden = false;
+      });
+      $("#forgotForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+          const result = await request("/auth/password/forgot", { method: "POST", body: JSON.stringify({ email: $("#recoveryEmail").value.trim() }), auth: false });
+          notify(result.message);
+        } catch (error) { notify(error.message, true); }
+      });
+      $("#resetForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if ($("#newPassword").value !== $("#confirmPassword").value) { notify("As senhas não conferem.", true); return; }
+        try {
+          const result = await request("/auth/password/reset", { method: "POST", body: JSON.stringify({ token: state.resetToken, new_password: $("#newPassword").value }), auth: false });
+          state.resetToken = null;
+          history.replaceState({}, "", "/");
+          $("#recoveryStep").hidden = true;
+          authForm.hidden = false;
+          $(".auth-tabs").hidden = false;
+          setAuthMode(false);
+          notify(`${result.message} Sua nova senha já está ativa.`);
+        } catch (error) { notify(error.message, true); }
+      });
 
       authForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -309,15 +450,39 @@
           if (state.registering) {
             const name = $("#name").value.trim();
             await request("/auth/register", { method: "POST", body: JSON.stringify({ name, email, password }), auth: false });
-            await authenticate(email, password);
-            notify("Conta criada. Boas-vindas ao TaskFlow!");
+            setAuthMode(false);
+            $("#email").value = email;
+            $("#password").value = "";
+            notify("Conta criada. Confirme o endereço pelo link enviado ao seu e-mail.");
           } else {
             await authenticate(email, password);
-            notify("Que bom ter você de volta!");
           }
-        } catch (error) { notify(error.message, true); }
+        } catch (error) {
+          if (!state.registering && error.message.includes("Confirme seu e-mail")) {
+            state.email = $("#email").value.trim().toLowerCase();
+            showSecurity("Confirme seu e-mail", error.message);
+            $("#securityForm").hidden = true;
+            $("#resendEmailButton").hidden = false;
+          } else notify(error.message, true);
+        }
         finally { button.disabled = false; button.textContent = state.registering ? "Criar conta" : "Entrar"; }
       });
+
+      const verificationToken = new URLSearchParams(location.search).get("verify");
+      if (verificationToken) {
+        history.replaceState({}, "", "/");
+        request("/auth/email/verify", { method: "POST", body: JSON.stringify({ token: verificationToken }), auth: false })
+          .then(() => notify("E-mail confirmado. Entre para configurar seu segundo fator."))
+          .catch((error) => notify(error.message, true));
+      }
+      const passwordResetToken = new URLSearchParams(location.search).get("reset");
+      if (passwordResetToken) {
+        state.resetToken = passwordResetToken;
+        state.token = null;
+        sessionStorage.removeItem("taskflow-token");
+        history.replaceState({}, "", "/");
+        showRecovery(true);
+      }
 
       async function loadTasks() {
         const list = $("#taskList");
@@ -492,7 +657,7 @@
         renderTasks();
       }));
 
-      if (state.token) showDashboard();
+      if (state.token && !passwordResetToken) showDashboard();
     })();
   </script>
 </body>
