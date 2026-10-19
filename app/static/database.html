@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Banco de dados — TaskFlow</title>
+  <style>
+    :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#202b3c;background:#f5f7fb;font-synthesis:none}*{box-sizing:border-box}body{margin:0}.wrap{max-width:1120px;margin:0 auto;padding:36px 22px}.top{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:28px}.brand{font-size:21px;font-weight:750;color:#273b68;text-decoration:none}.top a:last-child{color:#3657a7}.card{background:white;border:1px solid #e4e9f2;border-radius:16px;padding:22px;box-shadow:0 8px 26px #283b6810}.intro{max-width:680px}.muted{color:#65738a;line-height:1.55}.keyrow{display:flex;gap:10px;max-width:620px;margin-top:18px}input,button{font:inherit;border-radius:9px;padding:11px 13px}input{border:1px solid #cbd4e2;flex:1;min-width:0}button{border:0;background:#3657a7;color:white;font-weight:650;cursor:pointer}button.secondary{background:#e9eef8;color:#2e477f}button:disabled{opacity:.55;cursor:wait}.notice{min-height:24px;color:#a43737;margin:12px 0}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:20px 0}.stat{background:white;border:1px solid #e4e9f2;border-radius:12px;padding:16px}.stat span{display:block;color:#65738a;font-size:13px}.stat strong{display:block;font-size:25px;margin-top:6px}.tabs{display:flex;gap:8px;margin:18px 0}.tab{background:#e9eef8;color:#2e477f}.tab.active{background:#3657a7;color:white}.tablebox{overflow:auto;background:white;border:1px solid #e4e9f2;border-radius:12px}table{border-collapse:collapse;width:100%;min-width:650px}th,td{text-align:left;padding:12px 14px;border-bottom:1px solid #edf0f5;vertical-align:top;font-size:14px}th{background:#f8f9fc;color:#59677c}td.description{max-width:330px;white-space:pre-wrap;overflow-wrap:anywhere}.pager{display:flex;justify-content:space-between;align-items:center;margin-top:14px}.hidden{display:none!important}@media(max-width:650px){.wrap{padding:22px 14px}.top{align-items:flex-start}.keyrow{flex-direction:column}.stats{grid-template-columns:repeat(2,1fr)}.card{padding:17px}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="top"><a class="brand" href="/">TaskFlow · Banco</a><a href="/">Voltar ao TaskFlow</a></header>
+    <section class="card intro">
+      <h1>Visualização do banco de dados</h1>
+      <p class="muted">Área administrativa somente para consulta. Digite a chave configurada no ambiente do servidor. Esta tela mostra contas e tarefas; senhas, tokens e chaves de autenticação nunca são exibidos.</p>
+      <form id="keyForm" class="keyrow"><input id="key" type="password" autocomplete="new-password" required minlength="32" placeholder="Chave administrativa" aria-label="Chave administrativa"><button id="connect" type="submit">Acessar banco</button></form>
+      <p id="notice" class="notice" role="status" aria-live="polite"></p>
+    </section>
+    <section id="database" class="hidden">
+      <div class="stats" id="stats"></div>
+      <div class="tabs"><button class="tab active" data-table="users">Usuários</button><button class="tab" data-table="tasks">Tarefas</button></div>
+      <div class="tablebox"><table><thead id="head"></thead><tbody id="rows"></tbody></table></div>
+      <div class="pager"><button id="previous" class="secondary">Anterior</button><span id="page"></span><button id="next" class="secondary">Próxima</button></div>
+    </section>
+  </main>
+  <script>
+    (()=>{
+      let key="", table="users", offset=0, total=0; const pageSize=50;
+      const $=s=>document.querySelector(s);
+      const showError=message=>{$("#notice").textContent=message;};
+      async function api(path){const response=await fetch(path,{headers:{"X-Database-Viewer-Key":key},cache:"no-store",credentials:"same-origin"});const data=await response.json().catch(()=>null);if(!response.ok)throw new Error(data?.detail||"Não foi possível carregar os dados.");return data;}
+      function cell(row,value,cls=""){const td=document.createElement("td");td.textContent=value??"—";if(cls)td.className=cls;row.append(td);}
+      async function load(){
+        showError("");
+        try{
+          const summary=await api("/admin/database/summary"); total=summary[table];
+          $("#stats").replaceChildren(...Object.entries({"Usuários":summary.users,"Tarefas":summary.tasks,"E-mails pendentes":summary.pending_email_verifications,"Autenticadores ativos":summary.enabled_authenticators}).map(([label,value])=>{const box=document.createElement("div");box.className="stat";const name=document.createElement("span");name.textContent=label;const count=document.createElement("strong");count.textContent=value;box.append(name,count);return box;}));
+          const items=await api(`/admin/database/${table}?limit=${pageSize}&offset=${offset}`);
+          const columns=table==="users"?["ID","Nome","E-mail","Criado em"]:["ID","Título","Descrição","Status","ID usuário","Criado em"];
+          $("#head").replaceChildren();const tr=document.createElement("tr");columns.forEach(label=>{const th=document.createElement("th");th.textContent=label;tr.append(th);});$("#head").append(tr);
+          const body=$("#rows");body.replaceChildren();items.forEach(item=>{const row=document.createElement("tr");if(table==="users"){cell(row,item.id);cell(row,item.name);cell(row,item.email);cell(row,item.created_at);}else{cell(row,item.id);cell(row,item.title);cell(row,item.description,"description");cell(row,item.status);cell(row,item.owner_id);cell(row,item.created_at);}body.append(row);});
+          $("#page").textContent=total?`${offset+1}–${Math.min(offset+items.length,total)} de ${total}`:"Nenhum registro";
+          $("#previous").disabled=offset===0;$("#next").disabled=offset+pageSize>=total;
+          $("#database").classList.remove("hidden");
+        }catch(error){$("#database").classList.add("hidden");showError(error.message);if(error.message.includes("Chave administrativa")){key="";$("#key").focus();}}
+      }
+      $("#keyForm").addEventListener("submit",async event=>{event.preventDefault();key=$("#key").value;$("#key").value="";$("#connect").disabled=true;await load();$("#connect").disabled=false;});
+      document.querySelectorAll("[data-table]").forEach(button=>button.addEventListener("click",()=>{table=button.dataset.table;offset=0;document.querySelectorAll("[data-table]").forEach(tab=>tab.classList.toggle("active",tab===button));load();}));
+      $("#previous").addEventListener("click",()=>{offset=Math.max(0,offset-pageSize);load();});$("#next").addEventListener("click",()=>{offset+=pageSize;load();});
+      window.addEventListener("pagehide",()=>{key="";});
+    })();
+  </script>
+</body>
+</html>

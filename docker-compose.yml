@@ -25,6 +25,14 @@ services:
     environment:
       DATABASE_URL: mysql+pymysql://${MYSQL_USER:-taskflow_user}:${MYSQL_PASSWORD:-taskflow_pass}@db:3306/${MYSQL_DATABASE:-taskflow}
       SECRET_KEY: ${SECRET_KEY:-local-development-only-change-before-deploy}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8000}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      DATABASE_VIEWER_KEY: ${DATABASE_VIEWER_KEY:-}
       APP_ENV: ${APP_ENV:-development}
     depends_on:
       db:

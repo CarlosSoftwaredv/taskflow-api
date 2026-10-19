@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine, get_db
-from app.routers import auth, tasks
+from app.routers import admin, auth, tasks
 
 # Cria as tabelas no banco (em produção, prefira migrations com Alembic)
 Base.metadata.create_all(bind=engine)
@@ -19,6 +19,22 @@ app = FastAPI(
 
 app.include_router(auth.router)
 app.include_router(tasks.router)
+app.include_router(admin.router)
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    if request.url.path.startswith(("/admin/", "/auth/", "/database")):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.get("/database", include_in_schema=False)
+def database_viewer():
+    return FileResponse(Path(__file__).parent / "static" / "database.html")
 
 
 @app.get("/", tags=["Status"])
